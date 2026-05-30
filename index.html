@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鱼羊野史 - 全球历史故事地图</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; font-family: 'Microsoft YaHei', Arial, sans-serif; background-color: #0a0a0a; color: #f5f5dc; }
+
+        #globe-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        #header {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; z-index: 100;
+            pointer-events: none;
+        }
+        #header h1 { font-size: 42px; font-weight: 300; color: #d4a574; margin-bottom: 8px; letter-spacing: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        #header p { font-size: 14px; color: #999; text-shadow: 0 1px 5px rgba(0,0,0,0.8); }
+
+        #category-filter {
+            position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 100;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .category-btn {
+            padding: 10px 18px; font-size: 13px; border: 1.5px solid rgba(212,165,116,0.6); border-radius: 20px;
+            background: rgba(20, 20, 20, 0.85); color: #ccc; cursor: pointer;
+            transition: all 0.3s; backdrop-filter: blur(5px);
+        }
+        .category-btn:hover { border-color: #d4a574; color: #f5f5dc; }
+        .category-btn.active { background: #d4a574; color: #1a1a1a; border-color: #d4a574; font-weight: bold; }
+
+        #stats {
+            position: fixed; bottom: 25px; left: 25px; z-index: 100; color: #666; font-size: 13px;
+            pointer-events: none;
+        }
+        #total-stories { color: #d4a574; font-size: 22px; font-weight: bold; }
+
+        #location-tooltip {
+            display: none; position: fixed; z-index: 200; padding: 6px 12px;
+            background: rgba(20,20,20,0.9); border: 1px solid #d4a574; border-radius: 8px;
+            color: #f5f5dc; font-size: 12px; pointer-events: none; white-space: nowrap;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.75); justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: rgba(22, 22, 22, 0.98); padding: 35px 40px; border: 1.5px solid #d4a574; border-radius: 16px;
+            width: 80%; max-width: 680px; max-height: 80vh; overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        .modal-content::-webkit-scrollbar { width: 6px; }
+        .modal-content::-webkit-scrollbar-track { background: transparent; }
+        .modal-content::-webkit-scrollbar-thumb { background: #d4a574; border-radius: 3px; }
+        .close-btn { color: #d4a574; float: right; font-size: 30px; cursor: pointer; line-height: 1; transition: color 0.2s; }
+        .close-btn:hover { color: #fff; }
+        #modal-meta { display: flex; gap: 12px; margin: 15px 0 20px; flex-wrap: wrap; }
+        .meta-tag {
+            padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold;
+        }
+        #modal-title { color: #d4a574; font-size: 24px; margin: 0 0 5px; line-height: 1.4; }
+        #modal-content { line-height: 1.9; font-size: 15px; color: #ddd; white-space: pre-wrap; }
+        #modal-chapter {
+            margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; color: #777; font-size: 13px;
+        }
+
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,5,0.98);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;
+            gap: 15px;
+        }
+        .loading-spinner {
+            width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid #d4a574;
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { color: #d4a574; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div id="globe-container"></div>
+
+    <div id="header">
+        <h1>鱼羊野史</h1>
+        <p>跟随《鱼羊野史》，解锁藏在地球角落的历史细节</p>
+    </div>
+
+    <div id="category-filter">
+        <button class="category-btn active" data-category="all">全部</button>
+        <button class="category-btn" data-category="战争">战争</button>
+        <button class="category-btn" data-category="文化">文化</button>
+        <button class="category-btn" data-category="科技">科技</button>
+        <button class="category-btn" data-category="政治">政治</button>
+        <button class="category-btn" data-category="经济">经济</button>
+        <button class="category-btn" data-category="历史">历史</button>
+    </div>
+
+    <div id="stats">
+        <span id="total-stories">0</span> 个历史故事
+    </div>
+
+    <div id="location-tooltip"></div>
+
+    <div id="story-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2 id="modal-title"></h2>
+            <div id="modal-meta"></div>
+            <div id="modal-content"></div>
+            <div id="modal-chapter"></div>
+        </div>
+    </div>
+
+    <div id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-text">正在加载中...</div>
+    </div>
+
+    <script src="data.js"></script>
+
+    <script>
+        const categoryColors = {
+            '政治': '#c0392b', '战争': '#e74c3c', '文化': '#3498db',
+            '科技': '#f39c12', '经济': '#2ecc71', '历史': '#9b59b6'
+        };
+
+        let scene, camera, renderer, globe;
+        let categoryPoints = {};
+        let allStoriesByCategory = {};
+        let currentCategory = 'all';
+
+        function setLoadingText(text) {
+            document.getElementById('loading-text').textContent = text;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function init() {
+            setLoadingText('正在创建场景...');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050510);
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 1.5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('globe-container').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 3, 5);
+            scene.add(directionalLight);
+
+            addControls();
+            window.addEventListener('resize', onWindowResize);
+            animate();
+            createGlobe();
+        }
+
+        function onGlobeReady() {
+            globe.rotation.y = -Math.PI / 2;
+            setLoadingText('正在添加故事标记...');
+            addStoryMarkers();
+            hideLoading();
+            document.getElementById('total-stories').textContent = storiesData.stories.length;
+        }
+
+        function createGlobe() {
+            setLoadingText('正在创建地球...');
+
+            const geometry = new THREE.SphereGeometry(1, 64, 64);
+            const textureLoader = new THREE.TextureLoader();
+
+            textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', function(texture) {
+                const material = new THREE.MeshPhongMaterial({
+                    map: texture,
+                    shininess: 10
+                });
+
+                globe = new THREE.Mesh(geometry, material);
+                scene.add(globe);
+
+                const atmosphereGeometry = new THREE.SphereGeometry(1.03, 64, 64);
+                const atmosphereMaterial = new THREE.ShaderMaterial({
+                    vertexShader: `
+                        varying vec3 vNormal;
+                        void main() {
+                            vNormal = normalize(normalMatrix * normal);
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        varying vec3 vNormal;
+                        void main() {
+                            float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                            gl_FragColor = vec4(0.83, 0.65, 0.46, 1.0) * intensity;
+                        }
+                    `,
+                    blending: THREE.AdditiveBlending,
+                    side: THREE.BackSide,
+                    transparent: true
+                });
+
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                scene.add(atmosphere);
+
+                onGlobeReady();
+            }, undefined, function() {
+                setLoadingText('地球纹理加载失败，使用纯色地球...');
+                const material = new THREE.MeshPhongMaterial({ color: 0x1a3a5c, shininess: 10 });
+                globe = new THREE.Mesh(geometry, material);
+                scene.add(globe);
+                onGlobeReady();
+            });
+        }
+
+        function latLngTo3D(lat, lng, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lng + 180) * (Math.PI / 180);
+            return {
+                x: -radius * Math.sin(phi) * Math.cos(theta),
+                y: radius * Math.cos(phi),
+                z: radius * Math.sin(phi) * Math.sin(theta)
+            };
+        }
+
+        function addStoryMarkers() {
+            const locationOffsets = {};
+
+            storiesData.stories.forEach(story => {
+                const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
+                if (!locationOffsets[key]) locationOffsets[key] = 0;
+                locationOffsets[key]++;
+            });
+
+            const locationCounters = {};
+
+            storiesData.stories.forEach(story => {
+                const cat = story.category || '历史';
+                if (!allStoriesByCategory[cat]) allStoriesByCategory[cat] = [];
+                allStoriesByCategory[cat].push(story);
+            });
+
+            for (const [cat, stories] of Object.entries(allStoriesByCategory)) {
+                const positions = [];
+                const colors = [];
+                const color = new THREE.Color(categoryColors[cat] || 0xd4a574);
+
+                stories.forEach(story => {
+                    const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
+                    if (!locationCounters[key]) locationCounters[key] = 0;
+                    const idx = locationCounters[key]++;
+                    const total = locationOffsets[key];
+
+                    let lat = story.location.lat;
+                    let lng = story.location.lng;
+
+                    if (total > 1) {
+                        const angle = (idx / total) * Math.PI * 2;
+                        const spread = Math.min(0.02 * Math.sqrt(total), 0.08);
+                        lat += Math.cos(angle) * spread;
+                        lng += Math.sin(angle) * spread;
+                    }
+
+                    const pos = latLngTo3D(lat, lng, 1.008);
+                    positions.push(pos.x, pos.y, pos.z);
+                    colors.push(color.r, color.g, color.b);
+                });
+
+                const pointsGeometry = new THREE.BufferGeometry();
+                pointsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                pointsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const pointsMaterial = new THREE.PointsMaterial({
+                    size: 0.04,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.85,
+                    sizeAttenuation: true
+                });
+
+                const points = new THREE.Points(pointsGeometry, pointsMaterial);
+                globe.add(points);
+
+                categoryPoints[cat] = { mesh: points, stories: stories };
+            }
+        }
+
+        function addControls() {
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            let clickStartPosition = { x: 0, y: 0 };
+
+            renderer.domElement.addEventListener('mousedown', function(event) {
+                isDragging = true;
+                autoRotate = false;
+                clearTimeout(autoRotateTimer);
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+                clickStartPosition = { x: event.clientX, y: event.clientY };
+            });
+
+            renderer.domElement.addEventListener('mousemove', function(event) {
+                if (!isDragging) {
+                    updateTooltip(event);
+                    return;
+                }
+
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+
+                globe.rotation.y += deltaX * 0.005;
+                globe.rotation.x += deltaY * 0.005;
+                globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            });
+
+            renderer.domElement.addEventListener('mouseup', function() {
+                isDragging = false;
+                autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
+            });
+
+            renderer.domElement.addEventListener('wheel', function(event) {
+                event.preventDefault();
+                camera.position.z += event.deltaY * 0.001;
+                camera.position.z = Math.max(1.2, Math.min(5, camera.position.z));
+            }, { passive: false });
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.params.Points.threshold = 0.03;
+            const mouse = new THREE.Vector2();
+
+            renderer.domElement.addEventListener('click', function(event) {
+                const deltaX = Math.abs(event.clientX - clickStartPosition.x);
+                const deltaY = Math.abs(event.clientY - clickStartPosition.y);
+                if (deltaX > 5 || deltaY > 5) return;
+
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+
+                let clickedStory = null;
+                let minDist = Infinity;
+
+                for (const [cat, data] of Object.entries(categoryPoints)) {
+                    if (!data.mesh.visible) continue;
+                    const intersects = raycaster.intersectObject(data.mesh);
+                    if (intersects.length > 0 && intersects[0].distance < minDist) {
+                        minDist = intersects[0].distance;
+                        const index = intersects[0].index;
+                        if (index < data.stories.length) {
+                            clickedStory = data.stories[index];
+                        }
+                    }
+                }
+
+                if (clickedStory) {
+                    showStoryModal(clickedStory);
+                }
+            });
+
+            function updateTooltip(event) {
+                const tooltip = document.getElementById('location-tooltip');
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+
+                let found = false;
+                for (const [cat, data] of Object.entries(categoryPoints)) {
+                    if (!data.mesh.visible) continue;
+                    const intersects = raycaster.intersectObject(data.mesh);
+                    if (intersects.length > 0) {
+                        const index = intersects[0].index;
+                        if (index < data.stories.length) {
+                            const story = data.stories[index];
+                            tooltip.textContent = story.location.name + ' · ' + story.title;
+                            tooltip.style.left = (event.clientX + 15) + 'px';
+                            tooltip.style.top = (event.clientY - 10) + 'px';
+                            tooltip.style.display = 'block';
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found) tooltip.style.display = 'none';
+            }
+        }
+
+        function showStoryModal(story) {
+            const modal = document.getElementById('story-modal');
+            document.getElementById('modal-title').textContent = story.title;
+
+            const metaDiv = document.getElementById('modal-meta');
+            const catColor = categoryColors[story.category] || '#95a5a6';
+            metaDiv.innerHTML = `
+                <span class="meta-tag" style="background:${catColor}22; color:${catColor}; border:1px solid ${catColor}55;">${story.category}</span>
+                <span class="meta-tag" style="background:rgba(212,165,116,0.1); color:#d4a574; border:1px solid rgba(212,165,116,0.3);">${story.location.name}</span>
+            `;
+
+            document.getElementById('modal-content').textContent = story.content;
+
+            const chapterDiv = document.getElementById('modal-chapter');
+            if (story.chapterLink) {
+                chapterDiv.textContent = '原章节: ' + story.chapterLink.chapterTitle + ' (第 ' + story.chapterLink.sectionIndex + ' / ' + story.chapterLink.totalSections + ' 部分)';
+            } else {
+                chapterDiv.textContent = '';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        let autoRotate = true;
+        let autoRotateTimer = null;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (globe && autoRotate) {
+                globe.rotation.y += 0.0008;
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentCategory = this.dataset.category;
+
+                let visibleCount = 0;
+
+                for (const [cat, data] of Object.entries(categoryPoints)) {
+                    if (currentCategory === 'all') {
+                        data.mesh.visible = true;
+                        visibleCount += data.stories.length;
+                    } else {
+                        data.mesh.visible = (cat === currentCategory);
+                        if (cat === currentCategory) visibleCount = data.stories.length;
+                    }
+                }
+
+                document.getElementById('total-stories').textContent = visibleCount;
+            });
+        });
+
+        document.querySelector('.close-btn').addEventListener('click', function() {
+            document.getElementById('story-modal').style.display = 'none';
+        });
+
+        document.getElementById('story-modal').addEventListener('click', function(event) {
+            if (event.target === this) this.style.display = 'none';
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.getElementById('story-modal').style.display = 'none';
+            }
+        });
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js';
+        script.onload = function() {
+            init();
+        };
+        script.onerror = function() {
+            setLoadingText('Three.js 加载失败，请刷新页面重试');
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
