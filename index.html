@@ -2,81 +2,209 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>鱼羊野史 - 全球历史故事地图</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { margin: 0; overflow: hidden; font-family: 'Microsoft YaHei', Arial, sans-serif; background-color: #0a0a0a; color: #f5f5dc; }
+        body {
+            margin: 0; overflow: hidden;
+            font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+            background-color: #050510; color: #f5f5dc;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         #globe-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
+        /* ===== 标题 ===== */
         #header {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; z-index: 100;
-            pointer-events: none;
+            position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+            text-align: center; z-index: 100; pointer-events: none;
         }
-        #header h1 { font-size: 42px; font-weight: 300; color: #d4a574; margin-bottom: 8px; letter-spacing: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-        #header p { font-size: 14px; color: #999; text-shadow: 0 1px 5px rgba(0,0,0,0.8); }
+        #header h1 {
+            font-size: 36px; font-weight: 300; color: #d4a574; margin-bottom: 6px;
+            letter-spacing: 6px; text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+        }
+        #header p { font-size: 13px; color: #888; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
 
+        /* ===== 搜索框 ===== */
+        #search-panel {
+            position: fixed; left: 20px; top: 90px; width: 280px; z-index: 100;
+        }
+        #search-box {
+            width: 100%; padding: 10px 14px 10px 36px;
+            font-size: 14px; color: #f5f5dc;
+            background: rgba(20,20,20,0.85) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d4a574' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;
+            border: 1.5px solid rgba(212,165,116,0.4); border-radius: 22px;
+            backdrop-filter: blur(8px); outline: none;
+            transition: border-color 0.3s;
+        }
+        #search-box::placeholder { color: #666; }
+        #search-box:focus { border-color: #d4a574; }
+        #search-results {
+            display: none; margin-top: 6px; max-height: 360px; overflow-y: auto;
+            background: rgba(18,18,18,0.95); border: 1px solid rgba(212,165,116,0.3);
+            border-radius: 12px; backdrop-filter: blur(10px);
+        }
+        #search-results::-webkit-scrollbar { width: 5px; }
+        #search-results::-webkit-scrollbar-thumb { background: rgba(212,165,116,0.5); border-radius: 3px; }
+        .search-item {
+            padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; align-items: center; gap: 8px; transition: background 0.2s;
+        }
+        .search-item:hover { background: rgba(212,165,116,0.12); }
+        .search-item:last-child { border-bottom: none; }
+        .search-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .search-text { flex: 1; min-width: 0; }
+        .search-title { font-size: 13px; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .search-loc { font-size: 11px; color: #888; margin-top: 2px; }
+        .search-empty { padding: 16px; text-align: center; color: #666; font-size: 13px; }
+
+        /* ===== 位置列表 ===== */
+        #location-toggle {
+            position: fixed; left: 20px; top: 138px; z-index: 100;
+            padding: 7px 14px; font-size: 12px; color: #aaa;
+            background: rgba(20,20,20,0.85); border: 1.5px solid rgba(212,165,116,0.3);
+            border-radius: 16px; cursor: pointer; backdrop-filter: blur(8px);
+            transition: all 0.3s;
+        }
+        #location-toggle:hover { border-color: #d4a574; color: #f5f5dc; }
+        #location-toggle.active { background: rgba(212,165,116,0.2); border-color: #d4a574; color: #d4a574; }
+
+        #location-list {
+            display: none; position: fixed; left: 20px; top: 174px; width: 280px;
+            max-height: calc(100vh - 260px); overflow-y: auto; z-index: 99;
+            background: rgba(18,18,18,0.92); border: 1px solid rgba(212,165,116,0.25);
+            border-radius: 12px; backdrop-filter: blur(10px); padding: 6px;
+        }
+        #location-list::-webkit-scrollbar { width: 5px; }
+        #location-list::-webkit-scrollbar-thumb { background: rgba(212,165,116,0.4); border-radius: 3px; }
+        .loc-item {
+            padding: 8px 12px; cursor: pointer; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.2s; font-size: 13px;
+        }
+        .loc-item:hover { background: rgba(212,165,116,0.1); }
+        .loc-name { color: #ccc; }
+        .loc-count { color: #d4a574; font-size: 12px; font-weight: bold; }
+
+        /* ===== 分类过滤 ===== */
         #category-filter {
             position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 100;
-            display: flex; flex-direction: column; gap: 8px;
+            display: flex; flex-direction: column; gap: 7px;
         }
         .category-btn {
-            padding: 10px 18px; font-size: 13px; border: 1.5px solid rgba(212,165,116,0.6); border-radius: 20px;
-            background: rgba(20, 20, 20, 0.85); color: #ccc; cursor: pointer;
-            transition: all 0.3s; backdrop-filter: blur(5px);
+            padding: 9px 16px; font-size: 13px;
+            border: 1.5px solid rgba(212,165,116,0.5); border-radius: 20px;
+            background: rgba(20,20,20,0.85); color: #bbb; cursor: pointer;
+            transition: all 0.3s; backdrop-filter: blur(8px);
+            display: flex; align-items: center; gap: 8px; min-width: 100px;
         }
         .category-btn:hover { border-color: #d4a574; color: #f5f5dc; }
         .category-btn.active { background: #d4a574; color: #1a1a1a; border-color: #d4a574; font-weight: bold; }
+        .cat-count { font-size: 11px; opacity: 0.7; margin-left: auto; }
+        .category-btn.active .cat-count { opacity: 0.6; }
 
+        /* ===== 统计 ===== */
         #stats {
-            position: fixed; bottom: 25px; left: 25px; z-index: 100; color: #666; font-size: 13px;
+            position: fixed; bottom: 80px; left: 25px; z-index: 100; color: #666; font-size: 13px;
             pointer-events: none;
         }
         #total-stories { color: #d4a574; font-size: 22px; font-weight: bold; }
 
-        #location-tooltip {
-            display: none; position: fixed; z-index: 200; padding: 6px 12px;
-            background: rgba(20,20,20,0.9); border: 1px solid #d4a574; border-radius: 8px;
-            color: #f5f5dc; font-size: 12px; pointer-events: none; white-space: nowrap;
-            backdrop-filter: blur(5px);
+        /* ===== 坐标显示 ===== */
+        #coord-display {
+            position: fixed; bottom: 80px; right: 25px; z-index: 100;
+            color: #555; font-size: 11px; font-family: monospace;
+            pointer-events: none; text-align: right;
         }
 
+        /* ===== 控制按钮栏 ===== */
+        #control-bar {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100;
+            display: flex; gap: 8px;
+            background: rgba(20,20,20,0.8); padding: 6px; border-radius: 30px;
+            border: 1px solid rgba(212,165,116,0.2); backdrop-filter: blur(8px);
+        }
+        .ctrl-btn {
+            width: 40px; height: 40px; border: none; border-radius: 50%;
+            background: rgba(40,40,40,0.8); color: #d4a574; cursor: pointer;
+            font-size: 18px; display: flex; align-items: center; justify-content: center;
+            transition: all 0.25s;
+        }
+        .ctrl-btn:hover { background: rgba(212,165,116,0.25); }
+        .ctrl-btn.active { background: rgba(212,165,116,0.35); color: #fff; }
+        .ctrl-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        /* ===== 工具提示 ===== */
+        #location-tooltip {
+            display: none; position: fixed; z-index: 200; padding: 8px 14px;
+            background: rgba(20,20,20,0.92); border: 1px solid rgba(212,165,116,0.6); border-radius: 10px;
+            color: #f5f5dc; font-size: 13px; pointer-events: none; white-space: nowrap;
+            backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+        }
+        #location-tooltip .tt-loc { color: #d4a574; font-weight: bold; }
+        #location-tooltip .tt-title { color: #aaa; font-size: 12px; margin-top: 2px; }
+
+        /* ===== 模态框 ===== */
         .modal {
             display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.75); justify-content: center; align-items: center;
+            background-color: rgba(0,0,0,0.75); justify-content: center; align-items: center;
         }
         .modal-content {
-            background: rgba(22, 22, 22, 0.98); padding: 35px 40px; border: 1.5px solid #d4a574; border-radius: 16px;
+            background: rgba(22,22,22,0.98); padding: 35px 40px; border: 1.5px solid #d4a574; border-radius: 16px;
             width: 80%; max-width: 680px; max-height: 80vh; overflow-y: auto;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px); position: relative;
         }
         .modal-content::-webkit-scrollbar { width: 6px; }
         .modal-content::-webkit-scrollbar-track { background: transparent; }
         .modal-content::-webkit-scrollbar-thumb { background: #d4a574; border-radius: 3px; }
         .close-btn { color: #d4a574; float: right; font-size: 30px; cursor: pointer; line-height: 1; transition: color 0.2s; }
         .close-btn:hover { color: #fff; }
-        #modal-meta { display: flex; gap: 12px; margin: 15px 0 20px; flex-wrap: wrap; }
-        .meta-tag {
-            padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold;
-        }
+        #modal-meta { display: flex; gap: 10px; margin: 15px 0 20px; flex-wrap: wrap; }
+        .meta-tag { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
         #modal-title { color: #d4a574; font-size: 24px; margin: 0 0 5px; line-height: 1.4; }
         #modal-content { line-height: 1.9; font-size: 15px; color: #ddd; white-space: pre-wrap; }
-        #modal-chapter {
-            margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; color: #777; font-size: 13px;
-        }
+        #modal-chapter { margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; color: #777; font-size: 13px; }
 
+        /* ===== 加载 ===== */
         #loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,5,0.98);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,16,0.98);
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999;
-            gap: 15px;
+            gap: 18px;
         }
         .loading-spinner {
-            width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid #d4a574;
+            width: 44px; height: 44px; border: 3px solid #222; border-top: 3px solid #d4a574;
             border-radius: 50%; animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .loading-text { color: #d4a574; font-size: 16px; }
+        .loading-text { color: #d4a574; font-size: 15px; letter-spacing: 1px; }
+
+        /* ===== 帮助面板 ===== */
+        #help-panel {
+            display: none; position: fixed; bottom: 75px; left: 50%; transform: translateX(-50%);
+            z-index: 101; background: rgba(18,18,18,0.95); border: 1px solid rgba(212,165,116,0.3);
+            border-radius: 12px; padding: 18px 24px; backdrop-filter: blur(10px);
+            font-size: 13px; color: #bbb; line-height: 2; max-width: 380px;
+        }
+        #help-panel h3 { color: #d4a574; font-size: 15px; margin-bottom: 8px; }
+        #help-panel .help-key { color: #d4a574; font-weight: bold; }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            #header h1 { font-size: 26px; letter-spacing: 4px; }
+            #header p { font-size: 11px; }
+            #search-panel { width: calc(100% - 40px); top: 72px; }
+            #location-toggle { top: 120px; }
+            #location-list { width: calc(100% - 40px); top: 156px; }
+            #category-filter { right: 10px; gap: 5px; }
+            .category-btn { padding: 7px 12px; font-size: 12px; min-width: 80px; }
+            .cat-count { display: none; }
+            #stats { bottom: 75px; left: 15px; }
+            #coord-display { display: none; }
+            .ctrl-btn { width: 36px; height: 36px; font-size: 16px; }
+            .modal-content { width: 92%; padding: 25px 20px; }
+        }
     </style>
 </head>
 <body>
@@ -87,18 +215,47 @@
         <p>跟随《鱼羊野史》，解锁藏在地球角落的历史细节</p>
     </div>
 
+    <div id="search-panel">
+        <input type="text" id="search-box" placeholder="搜索故事或地点..." autocomplete="off">
+        <div id="search-results"></div>
+    </div>
+
+    <button id="location-toggle">📍 地点列表</button>
+    <div id="location-list"></div>
+
     <div id="category-filter">
-        <button class="category-btn active" data-category="all">全部</button>
-        <button class="category-btn" data-category="战争">战争</button>
-        <button class="category-btn" data-category="文化">文化</button>
-        <button class="category-btn" data-category="科技">科技</button>
-        <button class="category-btn" data-category="政治">政治</button>
-        <button class="category-btn" data-category="经济">经济</button>
-        <button class="category-btn" data-category="历史">历史</button>
+        <button class="category-btn active" data-category="all">全部 <span class="cat-count" id="count-all">0</span></button>
+        <button class="category-btn" data-category="战争">战争 <span class="cat-count" id="count-战争">0</span></button>
+        <button class="category-btn" data-category="文化">文化 <span class="cat-count" id="count-文化">0</span></button>
+        <button class="category-btn" data-category="科技">科技 <span class="cat-count" id="count-科技">0</span></button>
+        <button class="category-btn" data-category="历史">历史 <span class="cat-count" id="count-历史">0</span></button>
+        <button class="category-btn" data-category="政治">政治 <span class="cat-count" id="count-政治">0</span></button>
+        <button class="category-btn" data-category="经济">经济 <span class="cat-count" id="count-经济">0</span></button>
     </div>
 
     <div id="stats">
         <span id="total-stories">0</span> 个历史故事
+    </div>
+
+    <div id="coord-display"></div>
+
+    <div id="control-bar">
+        <button class="ctrl-btn" id="btn-zoom-in" title="放大">＋</button>
+        <button class="ctrl-btn" id="btn-zoom-out" title="缩小">－</button>
+        <button class="ctrl-btn" id="btn-reset" title="复位视角">⌂</button>
+        <button class="ctrl-btn active" id="btn-rotate" title="自动旋转">⟳</button>
+        <button class="ctrl-btn" id="btn-grid" title="经纬网格">▦</button>
+        <button class="ctrl-btn" id="btn-help" title="帮助">？</button>
+    </div>
+
+    <div id="help-panel">
+        <h3>操作指南</h3>
+        <div><span class="help-key">拖拽</span> 旋转地球</div>
+        <div><span class="help-key">滚轮 / 双指</span> 缩放</div>
+        <div><span class="help-key">点击标记</span> 查看故事</div>
+        <div><span class="help-key">悬停</span> 显示故事信息</div>
+        <div><span class="help-key">搜索框</span> 按标题或地点搜索</div>
+        <div><span class="help-key">Esc</span> 关闭弹窗</div>
     </div>
 
     <div id="location-tooltip"></div>
@@ -119,323 +276,763 @@
     </div>
 
     <script src="data.js"></script>
-
     <script>
-        const categoryColors = {
-            '政治': '#c0392b', '战争': '#e74c3c', '文化': '#3498db',
-            '科技': '#f39c12', '经济': '#2ecc71', '历史': '#9b59b6'
+    /* ============================================================
+       鱼羊野史 3D 地球 — 重构版
+       架构：场景 → 地球(含标记/网格) + 星空 + 大气层
+       ============================================================ */
+
+    // ===== 配置 =====
+    const CONFIG = {
+        globeRadius: 1,
+        markerRadius: 1.008,
+        sphereSegments: 128,
+        atmosphereRadius: 1.025,
+        starCount: 3000,
+        cameraMinZ: 1.25,
+        cameraMaxZ: 5,
+        cameraInitZ: 1.8,
+        rotateDamping: 0.92,
+        autoRotateSpeed: 0.0006,
+        flyDuration: 1000,
+        raycasterThreshold: 0.035,
+    };
+
+    const categoryColors = {
+        '政治': '#c0392b', '战争': '#e74c3c', '文化': '#3498db',
+        '科技': '#f39c12', '经济': '#2ecc71', '历史': '#9b59b6'
+    };
+
+    // ===== 全局状态 =====
+    let scene, camera, renderer, globe, graticule, starField, atmosphere;
+    let categoryPoints = {};
+    let allStoriesByCategory = {};
+    let uniqueLocations = [];
+    let currentCategory = 'all';
+    let autoRotate = true;
+    let isFlying = false;
+    let flyState = null;
+    let clock;
+    let raycaster, mouse;
+    let markerUniforms;
+
+    // 交互状态
+    let isDragging = false;
+    let rotationVelocity = { x: 0, y: 0 };
+    let prevPointer = { x: 0, y: 0 };
+    let clickStartPos = { x: 0, y: 0 };
+    let pointerDownTime = 0;
+    let pinchDist = 0;
+
+    // ===== 工具函数 =====
+    function setLoadingText(text) {
+        document.getElementById('loading-text').textContent = text;
+    }
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    // ===== 坐标转换 =====
+    function latLngTo3D(lat, lng, radius) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lng + 180) * (Math.PI / 180);
+        return {
+            x: -radius * Math.sin(phi) * Math.cos(theta),
+            y: radius * Math.cos(phi),
+            z: radius * Math.sin(phi) * Math.sin(theta)
         };
+    }
 
-        let scene, camera, renderer, globe;
-        let categoryPoints = {};
-        let allStoriesByCategory = {};
-        let currentCategory = 'all';
+    // 3D点转回经纬度（用于坐标显示）
+    function point3DToLatLng(localPoint) {
+        const r = localPoint.length();
+        const phi = Math.acos(Math.max(-1, Math.min(1, localPoint.y / r)));
+        const lat = 90 - phi * 180 / Math.PI;
+        const theta = Math.atan2(localPoint.z, -localPoint.x);
+        let lng = theta * 180 / Math.PI - 180;
+        if (lng < -180) lng += 360;
+        if (lng > 180) lng -= 360;
+        return { lat, lng };
+    }
 
-        function setLoadingText(text) {
-            document.getElementById('loading-text').textContent = text;
-        }
+    // 计算飞到某经纬度需要的目标旋转角度
+    function getTargetRotation(lat, lng) {
+        return {
+            y: -Math.PI / 2 - lng * Math.PI / 180,
+            x: lat * Math.PI / 180,
+        };
+    }
 
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
-        }
+    // ===== 初始化 =====
+    function init() {
+        setLoadingText('正在创建场景...');
+        clock = new THREE.Clock();
 
-        function init() {
-            setLoadingText('正在创建场景...');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510);
 
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050510);
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = CONFIG.cameraInitZ;
 
-            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 1.5;
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('globe-container').appendChild(renderer.domElement);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            document.getElementById('globe-container').appendChild(renderer.domElement);
+        // 光照：模拟太阳光 + 环境光
+        const ambientLight = new THREE.AmbientLight(0x556677, 0.5);
+        scene.add(ambientLight);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        sunLight.position.set(5, 3, 5);
+        scene.add(sunLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 3, 5);
-            scene.add(directionalLight);
+        // 微弱的补光，让背面不至于全黑
+        const fillLight = new THREE.DirectionalLight(0x4466aa, 0.3);
+        fillLight.position.set(-5, -2, -3);
+        scene.add(fillLight);
 
-            addControls();
-            window.addEventListener('resize', onWindowResize);
-            animate();
-            createGlobe();
-        }
+        raycaster = new THREE.Raycaster();
+        raycaster.params.Points.threshold = CONFIG.raycasterThreshold;
+        mouse = new THREE.Vector2();
 
-        function onGlobeReady() {
-            globe.rotation.y = -Math.PI / 2;
-            setLoadingText('正在添加故事标记...');
-            addStoryMarkers();
-            hideLoading();
-            document.getElementById('total-stories').textContent = storiesData.stories.length;
-        }
+        setupControls();
+        setupSearch();
+        setupCategoryFilter();
+        setupControlButtons();
+        setupModalEvents();
 
-        function createGlobe() {
-            setLoadingText('正在创建地球...');
+        window.addEventListener('resize', onWindowResize);
+        animate();
+        createGlobe();
+    }
 
-            const geometry = new THREE.SphereGeometry(1, 64, 64);
-            const textureLoader = new THREE.TextureLoader();
+    // ===== 地球创建 =====
+    function createGlobe() {
+        setLoadingText('正在创建地球...');
 
-            textureLoader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', function(texture) {
+        const geometry = new THREE.SphereGeometry(CONFIG.globeRadius, CONFIG.sphereSegments, CONFIG.sphereSegments);
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.crossOrigin = 'anonymous';
+
+        textureLoader.load(
+            'https://cdn.jsdelivr.net/npm/three-globe@2.31.0/example/img/earth-blue-marble.jpg',
+            function(texture) {
+                texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                texture.colorSpace = THREE.SRGBColorSpace;
+
                 const material = new THREE.MeshPhongMaterial({
                     map: texture,
-                    shininess: 10
+                    shininess: 8,
+                    specular: new THREE.Color(0x222233),
                 });
 
                 globe = new THREE.Mesh(geometry, material);
                 scene.add(globe);
 
-                const atmosphereGeometry = new THREE.SphereGeometry(1.03, 64, 64);
-                const atmosphereMaterial = new THREE.ShaderMaterial({
-                    vertexShader: `
-                        varying vec3 vNormal;
-                        void main() {
-                            vNormal = normalize(normalMatrix * normal);
-                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                        }
-                    `,
-                    fragmentShader: `
-                        varying vec3 vNormal;
-                        void main() {
-                            float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-                            gl_FragColor = vec4(0.83, 0.65, 0.46, 1.0) * intensity;
-                        }
-                    `,
-                    blending: THREE.AdditiveBlending,
-                    side: THREE.BackSide,
-                    transparent: true
-                });
-
-                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-                scene.add(atmosphere);
+                createAtmosphere();
+                createGraticule();
+                createStars();
 
                 onGlobeReady();
-            }, undefined, function() {
+            },
+            undefined,
+            function() {
                 setLoadingText('地球纹理加载失败，使用纯色地球...');
-                const material = new THREE.MeshPhongMaterial({ color: 0x1a3a5c, shininess: 10 });
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0x1a3a5c, shininess: 8,
+                    specular: new THREE.Color(0x222233),
+                });
                 globe = new THREE.Mesh(geometry, material);
                 scene.add(globe);
+
+                createAtmosphere();
+                createGraticule();
+                createStars();
+
                 onGlobeReady();
-            });
-        }
-
-        function latLngTo3D(lat, lng, radius) {
-            const phi = (90 - lat) * (Math.PI / 180);
-            const theta = (lng + 180) * (Math.PI / 180);
-            return {
-                x: -radius * Math.sin(phi) * Math.cos(theta),
-                y: radius * Math.cos(phi),
-                z: radius * Math.sin(phi) * Math.sin(theta)
-            };
-        }
-
-        function addStoryMarkers() {
-            const locationOffsets = {};
-
-            storiesData.stories.forEach(story => {
-                const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
-                if (!locationOffsets[key]) locationOffsets[key] = 0;
-                locationOffsets[key]++;
-            });
-
-            const locationCounters = {};
-
-            storiesData.stories.forEach(story => {
-                const cat = story.category || '历史';
-                if (!allStoriesByCategory[cat]) allStoriesByCategory[cat] = [];
-                allStoriesByCategory[cat].push(story);
-            });
-
-            for (const [cat, stories] of Object.entries(allStoriesByCategory)) {
-                const positions = [];
-                const colors = [];
-                const color = new THREE.Color(categoryColors[cat] || 0xd4a574);
-
-                stories.forEach(story => {
-                    const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
-                    if (!locationCounters[key]) locationCounters[key] = 0;
-                    const idx = locationCounters[key]++;
-                    const total = locationOffsets[key];
-
-                    let lat = story.location.lat;
-                    let lng = story.location.lng;
-
-                    if (total > 1) {
-                        const angle = (idx / total) * Math.PI * 2;
-                        const spread = Math.min(0.02 * Math.sqrt(total), 0.08);
-                        lat += Math.cos(angle) * spread;
-                        lng += Math.sin(angle) * spread;
-                    }
-
-                    const pos = latLngTo3D(lat, lng, 1.008);
-                    positions.push(pos.x, pos.y, pos.z);
-                    colors.push(color.r, color.g, color.b);
-                });
-
-                const pointsGeometry = new THREE.BufferGeometry();
-                pointsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-                pointsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-                const pointsMaterial = new THREE.PointsMaterial({
-                    size: 0.04,
-                    vertexColors: true,
-                    transparent: true,
-                    opacity: 0.85,
-                    sizeAttenuation: true
-                });
-
-                const points = new THREE.Points(pointsGeometry, pointsMaterial);
-                globe.add(points);
-
-                categoryPoints[cat] = { mesh: points, stories: stories };
             }
-        }
+        );
+    }
 
-        function addControls() {
-            let isDragging = false;
-            let previousMousePosition = { x: 0, y: 0 };
-            let clickStartPosition = { x: 0, y: 0 };
+    function onGlobeReady() {
+        globe.rotation.y = -Math.PI / 2;
+        setLoadingText('正在添加故事标记...');
+        addStoryMarkers();
+        updateCategoryCounts();
+        buildLocationList();
+        hideLoading();
+        document.getElementById('total-stories').textContent = storiesData.stories.length;
+        document.getElementById('count-all').textContent = storiesData.stories.length;
+    }
 
-            renderer.domElement.addEventListener('mousedown', function(event) {
-                isDragging = true;
-                autoRotate = false;
-                clearTimeout(autoRotateTimer);
-                previousMousePosition = { x: event.clientX, y: event.clientY };
-                clickStartPosition = { x: event.clientX, y: event.clientY };
-            });
-
-            renderer.domElement.addEventListener('mousemove', function(event) {
-                if (!isDragging) {
-                    updateTooltip(event);
-                    return;
+    // ===== 大气层 =====
+    function createAtmosphere() {
+        const geo = new THREE.SphereGeometry(CONFIG.atmosphereRadius, 64, 64);
+        const mat = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                 }
-
-                const deltaX = event.clientX - previousMousePosition.x;
-                const deltaY = event.clientY - previousMousePosition.y;
-
-                globe.rotation.y += deltaX * 0.005;
-                globe.rotation.x += deltaY * 0.005;
-                globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
-
-                previousMousePosition = { x: event.clientX, y: event.clientY };
-            });
-
-            renderer.domElement.addEventListener('mouseup', function() {
-                isDragging = false;
-                autoRotateTimer = setTimeout(() => { autoRotate = true; }, 3000);
-            });
-
-            renderer.domElement.addEventListener('wheel', function(event) {
-                event.preventDefault();
-                camera.position.z += event.deltaY * 0.001;
-                camera.position.z = Math.max(1.2, Math.min(5, camera.position.z));
-            }, { passive: false });
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.params.Points.threshold = 0.03;
-            const mouse = new THREE.Vector2();
-
-            renderer.domElement.addEventListener('click', function(event) {
-                const deltaX = Math.abs(event.clientX - clickStartPosition.x);
-                const deltaY = Math.abs(event.clientY - clickStartPosition.y);
-                if (deltaX > 5 || deltaY > 5) return;
-
-                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-                raycaster.setFromCamera(mouse, camera);
-
-                let clickedStory = null;
-                let minDist = Infinity;
-
-                for (const [cat, data] of Object.entries(categoryPoints)) {
-                    if (!data.mesh.visible) continue;
-                    const intersects = raycaster.intersectObject(data.mesh);
-                    if (intersects.length > 0 && intersects[0].distance < minDist) {
-                        minDist = intersects[0].distance;
-                        const index = intersects[0].index;
-                        if (index < data.stories.length) {
-                            clickedStory = data.stories[index];
-                        }
-                    }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                void main() {
+                    float intensity = pow(0.68 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
+                    vec3 glow = vec3(0.3, 0.5, 0.9) * intensity;
+                    gl_FragColor = vec4(glow, intensity * 0.9);
                 }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false,
+        });
+        atmosphere = new THREE.Mesh(geo, mat);
+        scene.add(atmosphere);
+    }
 
-                if (clickedStory) {
-                    showStoryModal(clickedStory);
-                }
-            });
-
-            function updateTooltip(event) {
-                const tooltip = document.getElementById('location-tooltip');
-                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-
-                let found = false;
-                for (const [cat, data] of Object.entries(categoryPoints)) {
-                    if (!data.mesh.visible) continue;
-                    const intersects = raycaster.intersectObject(data.mesh);
-                    if (intersects.length > 0) {
-                        const index = intersects[0].index;
-                        if (index < data.stories.length) {
-                            const story = data.stories[index];
-                            tooltip.textContent = story.location.name + ' · ' + story.title;
-                            tooltip.style.left = (event.clientX + 15) + 'px';
-                            tooltip.style.top = (event.clientY - 10) + 'px';
-                            tooltip.style.display = 'block';
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if (!found) tooltip.style.display = 'none';
-            }
-        }
-
-        function showStoryModal(story) {
-            const modal = document.getElementById('story-modal');
-            document.getElementById('modal-title').textContent = story.title;
-
-            const metaDiv = document.getElementById('modal-meta');
-            const catColor = categoryColors[story.category] || '#95a5a6';
-            metaDiv.innerHTML = `
-                <span class="meta-tag" style="background:${catColor}22; color:${catColor}; border:1px solid ${catColor}55;">${story.category}</span>
-                <span class="meta-tag" style="background:rgba(212,165,116,0.1); color:#d4a574; border:1px solid rgba(212,165,116,0.3);">${story.location.name}</span>
-            `;
-
-            document.getElementById('modal-content').textContent = story.content;
-
-            const chapterDiv = document.getElementById('modal-chapter');
-            if (story.chapterLink) {
-                chapterDiv.textContent = '原章节: ' + story.chapterLink.chapterTitle + ' (第 ' + story.chapterLink.sectionIndex + ' / ' + story.chapterLink.totalSections + ' 部分)';
+    // ===== 星空背景 =====
+    function createStars() {
+        const positions = [];
+        const colors = [];
+        for (let i = 0; i < CONFIG.starCount; i++) {
+            // 在大球面上随机分布
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = 80 + Math.random() * 40;
+            positions.push(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.cos(phi),
+                r * Math.sin(phi) * Math.sin(theta)
+            );
+            // 星星颜色微调（偏白偏蓝偏黄）
+            const tint = Math.random();
+            if (tint < 0.7) {
+                colors.push(1, 1, 1);
+            } else if (tint < 0.85) {
+                colors.push(0.8, 0.9, 1);
             } else {
-                chapterDiv.textContent = '';
+                colors.push(1, 0.95, 0.8);
             }
-
-            modal.style.display = 'flex';
         }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({
+            size: 0.5,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            sizeAttenuation: true,
+        });
+        starField = new THREE.Points(geo, mat);
+        scene.add(starField);
+    }
 
-        let autoRotate = true;
-        let autoRotateTimer = null;
+    // ===== 经纬网格 =====
+    function createGraticule() {
+        graticule = new THREE.Group();
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (globe && autoRotate) {
-                globe.rotation.y += 0.0008;
+        const lineMat = new THREE.LineBasicMaterial({
+            color: 0xd4a574,
+            transparent: true,
+            opacity: 0.12,
+            depthWrite: false,
+        });
+        const equatorMat = new THREE.LineBasicMaterial({
+            color: 0xd4a574,
+            transparent: true,
+            opacity: 0.25,
+            depthWrite: false,
+        });
+        const meridianMat = new THREE.LineBasicMaterial({
+            color: 0xd4a574,
+            transparent: true,
+            opacity: 0.2,
+            depthWrite: false,
+        });
+
+        const r = CONFIG.globeRadius * 1.001;
+        const segs = 64;
+
+        // 纬线（每30度）
+        for (let lat = -60; lat <= 60; lat += 30) {
+            const pts = [];
+            for (let i = 0; i <= segs; i++) {
+                const lng = -180 + (360 * i / segs);
+                pts.push(latLngTo3D(lat, lng, r));
             }
-            renderer.render(scene, camera);
+            const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, p.y, p.z)));
+            const mat = (lat === 0) ? equatorMat : lineMat;
+            graticule.add(new THREE.Line(geo, mat));
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        // 经线（每30度）
+        for (let lng = -180; lng < 180; lng += 30) {
+            const pts = [];
+            for (let i = 0; i <= segs; i++) {
+                const lat = -90 + (180 * i / segs);
+                pts.push(latLngTo3D(lat, lng, r));
+            }
+            const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p.x, p.y, p.z)));
+            const mat = (lng === 0) ? meridianMat : lineMat;
+            graticule.add(new THREE.Line(geo, mat));
         }
 
+        graticule.visible = false;
+        globe.add(graticule);
+    }
+
+    // ===== 故事标记（自定义发光着色器） =====
+    const markerVertexShader = `
+        attribute vec3 aColor;
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        varying vec3 vColor;
+        varying float vPulse;
+
+        void main() {
+            vColor = aColor;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            // 脉动效果，每个点略有差异
+            vPulse = 0.85 + 0.15 * sin(uTime * 1.8 + position.x * 8.0 + position.y * 5.0 + position.z * 3.0);
+            gl_PointSize = uSize * uPixelRatio * vPulse * (300.0 / max(0.01, -mvPosition.z));
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    `;
+
+    const markerFragmentShader = `
+        varying vec3 vColor;
+        varying float vPulse;
+
+        void main() {
+            vec2 coord = gl_PointCoord - vec2(0.5);
+            float dist = length(coord);
+            if (dist > 0.5) discard;
+
+            float core = smoothstep(0.5, 0.15, dist);
+            float glow = smoothstep(0.5, 0.0, dist) * 0.5;
+
+            vec3 finalColor = vColor * (core * 0.9 + glow * 0.35);
+            float alpha = core + glow * 0.5;
+
+            gl_FragColor = vec4(finalColor, alpha * vPulse);
+        }
+    `;
+
+    function addStoryMarkers() {
+        const locationOffsets = {};
+        storiesData.stories.forEach(story => {
+            const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
+            locationOffsets[key] = (locationOffsets[key] || 0) + 1;
+        });
+
+        const locationCounters = {};
+
+        storiesData.stories.forEach(story => {
+            const cat = story.category || '历史';
+            if (!allStoriesByCategory[cat]) allStoriesByCategory[cat] = [];
+            allStoriesByCategory[cat].push(story);
+        });
+
+        markerUniforms = {
+            uTime: { value: 0 },
+            uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+            uSize: { value: 0.016 },
+        };
+
+        for (const [cat, stories] of Object.entries(allStoriesByCategory)) {
+            const positions = [];
+            const colors = [];
+            const hexColor = categoryColors[cat] || '#d4a574';
+            const c = new THREE.Color(hexColor);
+
+            stories.forEach(story => {
+                const key = story.location.lat.toFixed(2) + ',' + story.location.lng.toFixed(2);
+                if (!locationCounters[key]) locationCounters[key] = 0;
+                const idx = locationCounters[key]++;
+                const total = locationOffsets[key];
+
+                let lat = story.location.lat;
+                let lng = story.location.lng;
+
+                // 同位置多个故事时环形散开
+                if (total > 1) {
+                    const angle = (idx / total) * Math.PI * 2;
+                    const spread = Math.min(0.015 * Math.sqrt(total), 0.06);
+                    lat += Math.cos(angle) * spread;
+                    lng += Math.sin(angle) * spread;
+                }
+
+                const pos = latLngTo3D(lat, lng, CONFIG.markerRadius);
+                positions.push(pos.x, pos.y, pos.z);
+                colors.push(c.r, c.g, c.b);
+            });
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('aColor', new THREE.Float32BufferAttribute(colors, 3));
+
+            const mat = new THREE.ShaderMaterial({
+                uniforms: markerUniforms,
+                vertexShader: markerVertexShader,
+                fragmentShader: markerFragmentShader,
+                transparent: true,
+                depthTest: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+            });
+
+            const points = new THREE.Points(geo, mat);
+            globe.add(points);
+            categoryPoints[cat] = { mesh: points, stories: stories };
+        }
+    }
+
+    function updateCategoryCounts() {
+        for (const [cat, data] of Object.entries(categoryPoints)) {
+            const el = document.getElementById('count-' + cat);
+            if (el) el.textContent = data.stories.length;
+        }
+    }
+
+    // ===== 控制（鼠标 + 触摸 + 惯性） =====
+    function setupControls() {
+        const dom = renderer.domElement;
+
+        // --- 鼠标 ---
+        dom.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        dom.addEventListener('wheel', onWheel, { passive: false });
+        dom.addEventListener('mousemove', onHover);
+        dom.addEventListener('click', onClick);
+
+        // --- 触摸 ---
+        dom.addEventListener('touchstart', onTouchStart, { passive: false });
+        dom.addEventListener('touchmove', onTouchMove, { passive: false });
+        dom.addEventListener('touchend', onTouchEnd);
+    }
+
+    function onPointerDown(e) {
+        isDragging = true;
+        autoRotate = false;
+        updateRotateBtn();
+        prevPointer = { x: e.clientX, y: e.clientY };
+        clickStartPos = { x: e.clientX, y: e.clientY };
+        pointerDownTime = Date.now();
+        rotationVelocity = { x: 0, y: 0 };
+    }
+
+    function onPointerMove(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - prevPointer.x;
+        const dy = e.clientY - prevPointer.y;
+        globe.rotation.y += dx * 0.005;
+        globe.rotation.x += dy * 0.005;
+        globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+        // 记录速度用于惯性
+        rotationVelocity = { x: dy * 0.005, y: dx * 0.005 };
+        prevPointer = { x: e.clientX, y: e.clientY };
+    }
+
+    function onPointerUp() {
+        if (!isDragging) return;
+        isDragging = false;
+    }
+
+    function onWheel(e) {
+        e.preventDefault();
+        const delta = e.deltaY * 0.001;
+        camera.position.z = Math.max(CONFIG.cameraMinZ, Math.min(CONFIG.cameraMaxZ, camera.position.z + delta));
+    }
+
+    function onHover(e) {
+        if (isDragging) return;
+        updateTooltip(e.clientX, e.clientY);
+        updateCoordDisplay(e.clientX, e.clientY);
+    }
+
+    function onClick(e) {
+        // 区分拖拽和点击
+        const dx = Math.abs(e.clientX - clickStartPos.x);
+        const dy = Math.abs(e.clientY - clickStartPos.y);
+        const dt = Date.now() - pointerDownTime;
+        if (dx > 6 || dy > 6 || dt > 500) return;
+
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        let clickedStory = null;
+        let minDist = Infinity;
+
+        for (const [cat, data] of Object.entries(categoryPoints)) {
+            if (!data.mesh.visible) continue;
+            const intersects = raycaster.intersectObject(data.mesh);
+            if (intersects.length > 0 && intersects[0].distance < minDist) {
+                minDist = intersects[0].distance;
+                const index = intersects[0].index;
+                if (index < data.stories.length) {
+                    clickedStory = data.stories[index];
+                }
+            }
+        }
+
+        if (clickedStory) {
+            showStoryModal(clickedStory);
+        }
+    }
+
+    // --- 触摸事件 ---
+    function onTouchStart(e) {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            isDragging = true;
+            autoRotate = false;
+            updateRotateBtn();
+            const t = e.touches[0];
+            prevPointer = { x: t.clientX, y: t.clientY };
+            clickStartPos = { x: t.clientX, y: t.clientY };
+            pointerDownTime = Date.now();
+            rotationVelocity = { x: 0, y: 0 };
+        } else if (e.touches.length === 2) {
+            isDragging = false;
+            pinchDist = getTouchDist(e);
+        }
+    }
+
+    function onTouchMove(e) {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            const t = e.touches[0];
+            const dx = t.clientX - prevPointer.x;
+            const dy = t.clientY - prevPointer.y;
+            globe.rotation.y += dx * 0.005;
+            globe.rotation.x += dy * 0.005;
+            globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+            rotationVelocity = { x: dy * 0.005, y: dx * 0.005 };
+            prevPointer = { x: t.clientX, y: t.clientY };
+        } else if (e.touches.length === 2) {
+            const newDist = getTouchDist(e);
+            if (pinchDist > 0) {
+                const scale = pinchDist / newDist;
+                camera.position.z = Math.max(CONFIG.cameraMinZ, Math.min(CONFIG.cameraMaxZ, camera.position.z * scale));
+            }
+            pinchDist = newDist;
+        }
+    }
+
+    function onTouchEnd(e) {
+        if (e.touches.length === 0) {
+            if (isDragging) {
+                isDragging = false;
+                // 检测点击
+                const t = e.changedTouches[0];
+                const dx = Math.abs(t.clientX - clickStartPos.x);
+                const dy = Math.abs(t.clientY - clickStartPos.y);
+                const dt = Date.now() - pointerDownTime;
+                if (dx < 8 && dy < 8 && dt < 400) {
+                    mouse.x = (t.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
+                    raycaster.setFromCamera(mouse, camera);
+                    let clickedStory = null;
+                    let minDist = Infinity;
+                    for (const [cat, data] of Object.entries(categoryPoints)) {
+                        if (!data.mesh.visible) continue;
+                        const intersects = raycaster.intersectObject(data.mesh);
+                        if (intersects.length > 0 && intersects[0].distance < minDist) {
+                            minDist = intersects[0].distance;
+                            const index = intersects[0].index;
+                            if (index < data.stories.length) clickedStory = data.stories[index];
+                        }
+                    }
+                    if (clickedStory) showStoryModal(clickedStory);
+                }
+            }
+            pinchDist = 0;
+        }
+    }
+
+    function getTouchDist(e) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // ===== 工具提示 =====
+    function updateTooltip(cx, cy) {
+        const tooltip = document.getElementById('location-tooltip');
+        mouse.x = (cx / window.innerWidth) * 2 - 1;
+        mouse.y = -(cy / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        let found = false;
+        for (const [cat, data] of Object.entries(categoryPoints)) {
+            if (!data.mesh.visible) continue;
+            const intersects = raycaster.intersectObject(data.mesh);
+            if (intersects.length > 0) {
+                const index = intersects[0].index;
+                if (index < data.stories.length) {
+                    const story = data.stories[index];
+                    tooltip.innerHTML = '<div class="tt-loc">' + story.location.name + '</div><div class="tt-title">' + story.title + '</div>';
+                    tooltip.style.left = (cx + 15) + 'px';
+                    tooltip.style.top = (cy - 10) + 'px';
+                    tooltip.style.display = 'block';
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found) tooltip.style.display = 'none';
+    }
+
+    // ===== 坐标显示 =====
+    function updateCoordDisplay(cx, cy) {
+        if (!globe) return;
+        const display = document.getElementById('coord-display');
+        mouse.x = (cx / window.innerWidth) * 2 - 1;
+        mouse.y = -(cy / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(globe);
+        if (intersects.length > 0) {
+            const local = globe.worldToLocal(intersects[0].point.clone());
+            const ll = point3DToLatLng(local);
+            display.textContent = ll.lat.toFixed(2) + '°, ' + ll.lng.toFixed(2) + '°';
+        } else {
+            display.textContent = '';
+        }
+    }
+
+    // ===== 飞行动画 =====
+    function flyTo(lat, lng, callback) {
+        const target = getTargetRotation(lat, lng);
+
+        // 处理 Y 轴最短路径
+        let dy = target.y - globe.rotation.y;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+
+        flyState = {
+            startY: globe.rotation.y,
+            startX: globe.rotation.x,
+            deltaY: dy,
+            deltaX: target.x - globe.rotation.x,
+            startTime: performance.now(),
+            duration: CONFIG.flyDuration,
+            callback: callback,
+        };
+        isFlying = true;
+        autoRotate = false;
+        updateRotateBtn();
+        rotationVelocity = { x: 0, y: 0 };
+    }
+
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function updateFly(now) {
+        if (!isFlying || !flyState) return;
+        const elapsed = now - flyState.startTime;
+        const t = Math.min(elapsed / flyState.duration, 1);
+        const eased = easeInOutCubic(t);
+        globe.rotation.y = flyState.startY + flyState.deltaY * eased;
+        globe.rotation.x = flyState.startX + flyState.deltaX * eased;
+        if (t >= 1) {
+            isFlying = false;
+            if (flyState.callback) flyState.callback();
+            flyState = null;
+        }
+    }
+
+    // ===== 搜索 =====
+    function setupSearch() {
+        const box = document.getElementById('search-box');
+        const results = document.getElementById('search-results');
+
+        box.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            if (!q) {
+                results.style.display = 'none';
+                return;
+            }
+            const matched = [];
+            for (const story of storiesData.stories) {
+                if (story.title.toLowerCase().includes(q) || story.location.name.toLowerCase().includes(q)) {
+                    matched.push(story);
+                    if (matched.length >= 20) break;
+                }
+            }
+            if (matched.length === 0) {
+                results.innerHTML = '<div class="search-empty">无匹配结果</div>';
+            } else {
+                results.innerHTML = matched.map(s => {
+                    const color = categoryColors[s.category] || '#d4a574';
+                    return '<div class="search-item" data-id="' + s.id + '">' +
+                        '<div class="search-dot" style="background:' + color + '"></div>' +
+                        '<div class="search-text"><div class="search-title">' + s.title + '</div>' +
+                        '<div class="search-loc">' + s.location.name + ' · ' + s.category + '</div></div></div>';
+                }).join('');
+                results.querySelectorAll('.search-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        const story = storiesData.stories.find(s => s.id === id);
+                        if (story) {
+                            flyTo(story.location.lat, story.location.lng, function() {
+                                showStoryModal(story);
+                            });
+                            results.style.display = 'none';
+                            box.value = '';
+                        }
+                    });
+                });
+            }
+            results.style.display = 'block';
+        });
+
+        // 点击外部关闭搜索结果
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#search-panel')) {
+                results.style.display = 'none';
+            }
+        });
+    }
+
+    // ===== 位置列表 =====
+    function buildLocationList() {
+        const locMap = {};
+        storiesData.stories.forEach(story => {
+            const key = story.location.name;
+            if (!locMap[key]) {
+                locMap[key] = { name: key, lat: story.location.lat, lng: story.location.lng, count: 0, stories: [] };
+            }
+            locMap[key].count++;
+            locMap[key].stories.push(story);
+        });
+        uniqueLocations = Object.values(locMap).sort((a, b) => b.count - a.count);
+
+        const list = document.getElementById('location-list');
+        list.innerHTML = uniqueLocations.map(l =>
+            '<div class="loc-item" data-lat="' + l.lat + '" data-lng="' + l.lng + '">' +
+            '<span class="loc-name">' + l.name + '</span>' +
+            '<span class="loc-count">' + l.count + '</span></div>'
+        ).join('');
+
+        list.querySelectorAll('.loc-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const lat = parseFloat(this.dataset.lat);
+                const lng = parseFloat(this.dataset.lng);
+                flyTo(lat, lng);
+            });
+        });
+    }
+
+    function setupCategoryFilter() {
         document.querySelectorAll('.category-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -443,7 +1040,6 @@
                 currentCategory = this.dataset.category;
 
                 let visibleCount = 0;
-
                 for (const [cat, data] of Object.entries(categoryPoints)) {
                     if (currentCategory === 'all') {
                         data.mesh.visible = true;
@@ -453,34 +1049,140 @@
                         if (cat === currentCategory) visibleCount = data.stories.length;
                     }
                 }
-
                 document.getElementById('total-stories').textContent = visibleCount;
             });
         });
+    }
 
+    // ===== 控制按钮 =====
+    function setupControlButtons() {
+        document.getElementById('btn-zoom-in').addEventListener('click', function() {
+            camera.position.z = Math.max(CONFIG.cameraMinZ, camera.position.z - 0.3);
+        });
+        document.getElementById('btn-zoom-out').addEventListener('click', function() {
+            camera.position.z = Math.min(CONFIG.cameraMaxZ, camera.position.z + 0.3);
+        });
+        document.getElementById('btn-reset').addEventListener('click', function() {
+            flyTo(20, 0);
+            camera.position.z = CONFIG.cameraInitZ;
+        });
+        document.getElementById('btn-rotate').addEventListener('click', function() {
+            autoRotate = !autoRotate;
+            updateRotateBtn();
+        });
+        document.getElementById('btn-grid').addEventListener('click', function() {
+            if (graticule) {
+                graticule.visible = !graticule.visible;
+                this.classList.toggle('active', graticule.visible);
+            }
+        });
+        document.getElementById('btn-help').addEventListener('click', function() {
+            const panel = document.getElementById('help-panel');
+            panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+        });
+    }
+
+    function updateRotateBtn() {
+        document.getElementById('btn-rotate').classList.toggle('active', autoRotate);
+    }
+
+    // ===== 模态框 =====
+    function showStoryModal(story) {
+        const modal = document.getElementById('story-modal');
+        document.getElementById('modal-title').textContent = story.title;
+
+        const metaDiv = document.getElementById('modal-meta');
+        const catColor = categoryColors[story.category] || '#95a5a6';
+        metaDiv.innerHTML =
+            '<span class="meta-tag" style="background:' + catColor + '22; color:' + catColor + '; border:1px solid ' + catColor + '55;">' + story.category + '</span>' +
+            '<span class="meta-tag" style="background:rgba(212,165,116,0.1); color:#d4a574; border:1px solid rgba(212,165,116,0.3);">' + story.location.name + '</span>';
+
+        document.getElementById('modal-content').textContent = story.content;
+
+        const chapterDiv = document.getElementById('modal-chapter');
+        if (story.chapterLink) {
+            chapterDiv.textContent = '原章节: ' + story.chapterLink.chapterTitle + ' (第 ' + story.chapterLink.sectionIndex + ' / ' + story.chapterLink.totalSections + ' 部分)';
+        } else {
+            chapterDiv.textContent = '';
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function setupModalEvents() {
         document.querySelector('.close-btn').addEventListener('click', function() {
             document.getElementById('story-modal').style.display = 'none';
         });
-
-        document.getElementById('story-modal').addEventListener('click', function(event) {
-            if (event.target === this) this.style.display = 'none';
+        document.getElementById('story-modal').addEventListener('click', function(e) {
+            if (e.target === this) this.style.display = 'none';
         });
-
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
                 document.getElementById('story-modal').style.display = 'none';
+                document.getElementById('help-panel').style.display = 'none';
+                document.getElementById('search-results').style.display = 'none';
             }
         });
+    }
 
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js';
-        script.onload = function() {
-            init();
-        };
-        script.onerror = function() {
-            setLoadingText('Three.js 加载失败，请刷新页面重试');
-        };
-        document.head.appendChild(script);
+    // ===== 位置列表开关 =====
+    document.getElementById('location-toggle').addEventListener('click', function() {
+        const list = document.getElementById('location-list');
+        const visible = list.style.display === 'block';
+        list.style.display = visible ? 'none' : 'block';
+        this.classList.toggle('active', !visible);
+    });
+
+    // ===== 动画循环 =====
+    function animate() {
+        requestAnimationFrame(animate);
+        const now = performance.now();
+        const delta = clock.getDelta();
+
+        // 飞行动画
+        if (isFlying) {
+            updateFly(now);
+        } else if (!isDragging) {
+            // 惯性
+            if (Math.abs(rotationVelocity.x) > 0.0001 || Math.abs(rotationVelocity.y) > 0.0001) {
+                globe.rotation.y += rotationVelocity.y;
+                globe.rotation.x += rotationVelocity.x;
+                globe.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, globe.rotation.x));
+                rotationVelocity.x *= CONFIG.rotateDamping;
+                rotationVelocity.y *= CONFIG.rotateDamping;
+            } else if (autoRotate && globe) {
+                globe.rotation.y += CONFIG.autoRotateSpeed;
+            }
+        }
+
+        // 更新标记着色器时间
+        if (markerUniforms) {
+            markerUniforms.uTime.value = clock.getElapsedTime();
+        }
+
+        // 星空缓慢旋转
+        if (starField) {
+            starField.rotation.y += 0.00005;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        if (markerUniforms) {
+            markerUniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2);
+        }
+    }
+
+    // ===== 启动 =====
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js';
+    script.onload = function() { init(); };
+    script.onerror = function() { setLoadingText('Three.js 加载失败，请刷新页面重试'); };
+    document.head.appendChild(script);
     </script>
 </body>
 </html>
