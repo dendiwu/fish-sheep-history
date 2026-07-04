@@ -1,4 +1,4 @@
 name: fish-sheep-history
-port: auto
+port: 8100
 start: "python3 -m http.server {{PORT}} --directory ."
 auto_restart: true
